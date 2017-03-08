@@ -103,7 +103,7 @@ function reload(){  //Uses global sp
 	var vOld = sp[g]["OLD"].sort(function(a, b) { return b.nSat - a.nSat; }); //order by sat courses
 	var vNew = sp[g]["NEW"];
 	var vGender = vOld.concat(vNew); //old+new students, just one gender
-	//vGender = orderByLastLayout(vGender);
+	vGender = orderByLastLayout(vGender);
 	
 	legend.gender = g;
 	legend.venue = sp.VENUE;
@@ -128,6 +128,7 @@ function reload(){  //Uses global sp
 */
 function getLastLayout(){
 	var persisted_data = [["000000"],["OM0002"],["OM0003"],["OM0004"],["000000"],["OM0006"],["OM0007"],["OM0008"],["000000"],["NM0002"],["000000"],["NM0004"],["NM0005"],["NM0008"],["NM0006"],["NM0007"],["000000"],["NM0001"],["OM0001"],["NM0003"],["OM0005"]];
+	
 	return persisted_data;
 }
 /* Recalls the last used layout for this course and sort the students array according to it. 
@@ -150,7 +151,7 @@ function orderByLastLayout(students){
 			}
 			else if(zig[i][0] === students[j]['id'] ){
 				var std = students.splice(j,1) //students.length decreases by 1
-				ordered_result.push(std);
+				ordered_result.push(std[0]);
 				found = true;
 			}
 			j++;
