@@ -2,6 +2,9 @@
 * Independent code, not REDIPS related.
 * Read JSON from server (LOCALHOST or Calm4)via AJAX
 **/
+
+/* enable strict mode */
+//"use strict";
 var urlJSON   = "http://localhost/json/students.json";
 var tableId   = "table1";
 var colorEven = "#eee";
@@ -11,7 +14,7 @@ var hallCols = { "DIPA" : 8, "MAHI" : 7, "NERU" : 4, "PADHANA" : 6, "SACCA" : 8,
 var sp = {};
 var legend = {};
 var emptyId = "000000";
-
+var last_layout = [["000000"],["OM0002"],["OM0003"],["OM0004"],["000000"],["OM0006"],["OM0007"],["OM0008"],["000000"],["NM0002"],["000000"],["NM0004"],["NM0005"],["NM0008"],["NM0006"],["NM0007"],["000000"],["NM0001"],["OM0001"],["NM0003"],["OM0005"]];
 
 /**
 * HTML+CSS output for each student 
@@ -98,6 +101,16 @@ function setVenue(newVenue){  //TODO codigo ya disponible en feedback.js
 	//Ask user for information (nCols) about this new unknown venue and upload it to GoogleForm 
 	return  $('input[name=ncol]:checked', '#cols').val() ;
 }
+
+/**
+* Method executed whenever user performs drag&drop and cell contents are actually switched
+* It's passed to script.js via asingEventHandlerForSwitch(persist)
+*/
+function persist(){
+	
+	alert("metodo persist en din_table.js");
+}
+
 function reload(){  //Uses global sp
 	g = $('input[name=gender]:checked', '#genders').val(); //"MALE" || "FEMALE"
 	var vOld = sp[g]["OLD"].sort(function(a, b) { return b.nSat - a.nSat; }); //order by sat courses
@@ -119,7 +132,11 @@ function reload(){  //Uses global sp
 	$('#entry_point').html(table); //Inject table into html label: <span id="entry_point"/> 
 	$('#redips-drag').width($('#table1').width()); //http://www.redips.net/javascript/redips-drag-documentation-appendix-a/#redips_drag
 	$('#redips-drag').height($('#table1').height()); //http://www.redips.net/javascript/redips-drag-documentation-appendix-a/#redips_drag
-	REDIPS.drag.init(); //REDIPS has to reload dinamically generated tables
+	alert("din_table: antes REDIPS.drag.init(persist)");
+	 //REDIPS has to reload dinamically generated tables
+	REDIPS.drag.init();
+	var json_text = save("json"); //"save" saves array as text!  <----- QUE SCRIPT.JS GUARDE EL ARRAY EN CADA DRAG&DROP (EVENTO SWITCH!!!!!)
+	last_layout = jQuery.parseJSON(json_text); //this is a kind of  eval('(' + json_text + ')');
 }
 /* TODO improve this function description
 * Whenever user modifies the SP, the changes get stored (online DB, extension persistence, etc)
@@ -127,9 +144,9 @@ function reload(){  //Uses global sp
 * getLastLayout 
 */
 function getLastLayout(){
-	var persisted_data = [["000000"],["OM0002"],["OM0003"],["OM0004"],["000000"],["OM0006"],["OM0007"],["OM0008"],["000000"],["NM0002"],["000000"],["NM0004"],["NM0005"],["NM0008"],["NM0006"],["NM0007"],["000000"],["NM0001"],["OM0001"],["NM0003"],["OM0005"]];
-	
-	return persisted_data;
+	//last_layout = [["NM0006"],["000000"],["OM0003"],["OM0004"],["OM0001"],["OM0006"],["OM0007"],["OM0008"],["OM0002"],["NM0002"],["000000"],["NM0004"],["NM0005"],["NM0008"],["000000"],["NM0007"],["000000"],["NM0001"],["000000"],["NM0003"],["OM0005"]];
+	//last_layout = [["NM0006"],["000000"],["OM0003"],["000000"],["OM0001"],["OM0006"],["OM0007"],["OM0008"],["OM0002"],["NM0002"],["OM0004"],["NM0004"],["NM0005"],["NM0008"],["000000"],["NM0007"],["000000"],["NM0001"],["000000"],["NM0003"],["OM0005"]];
+	return last_layout;
 }
 /* Recalls the last used layout for this course and sort the students array according to it. 
 * Default order to asign sits to students is by "nSat top->down". However, any modification by the user was recorded,
@@ -166,9 +183,11 @@ function getStudentsJSON(urlJSON){
 		complete: function (data_response) {
 			sp = JSON.parse(data_response.responseText); //sp GLOBAL
 			//$('input:radio[name="gender"]').filter('[value="Male"]').attr('checked', true);
+			//Pre-select the number of cols according to the center name:
 			$('input[name=ncol]', '#cols').filter('[value="' +hallCols[sp.VENUE.toUpperCase()] + '"]').attr('checked', true); 
+			setMode(document.querySelector('input[name="drop_option"]:checked')); //Activate the selected drag&drop mode
 			reload();
-			console.log(document.documentElement.outerHTML);
+			//console.log(document.documentElement.outerHTML);
 		},
 		error: function (error) {
 			alert(JSON.stringify(error));
@@ -178,3 +197,4 @@ function getStudentsJSON(urlJSON){
 
 //EXEC:
 getStudentsJSON(urlJSON);
+asingEventHandlerForSwitch(persist); //only once is enough :)
