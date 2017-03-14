@@ -4,7 +4,7 @@
 **/
 
 /* enable strict mode */
-//"use strict";
+"use strict";
 var urlJSON   = "http://localhost/json/students.json";
 var tableId   = "table1";
 var colorEven = "#eee";
@@ -55,7 +55,9 @@ function createTable(arrStd, ncols){
 	//when reading first time from CALM ajax 
 	var nrows = Math.floor(numStd / ncols); //Num FULL rows
 	var color = colorEven;
-	var table = colgroup = tfoot = "";	
+	var table = "";
+	var colgroup = "";
+	var tfoot = "";	
 	
 	//COLGROUP + TFOOT
 	colgroup = "<colgroup><col width=\"20\" />";
@@ -102,17 +104,31 @@ function setVenue(newVenue){  //TODO codigo ya disponible en feedback.js
 	return  $('input[name=ncol]:checked', '#cols').val() ;
 }
 
-/**
-* Method executed whenever user performs drag&drop and cell contents are actually switched
-* It's passed to script.js via asingEventHandlerForSwitch(persist)
+//--------- LOCAL STORAGE --------
+/** 
+* @return Last saved table layout
 */
-function persist(){
-	
-	alert("metodo persist en din_table.js");
+function getLastLayout(){
+	var last_layout = JSON.parse(localStorage["last_layout"]);
+	return last_layout;
 }
+/**
+* @param Stores the current table layout
+*/
+function setLastLayout(){
+	var json_text = save("json"); //"save" saves array as text! 
+	last_layout = jQuery.parseJSON(json_text); //turns text into Array - this is a kind of  eval('(' + json_text + ')');
+	localStorage["last_layout"] = JSON.stringify(last_layout);
+}
+/** initializes LocalStorage object with empty array*/
+function initLocalStorage(){
+	if (!localStorage.last_layout) localStorage.last_layout = null;
+}
+//--------- END LOCAL STORAGE --------
+
 
 function reload(){  //Uses global sp
-	g = $('input[name=gender]:checked', '#genders').val(); //"MALE" || "FEMALE"
+	var g = $('input[name=gender]:checked', '#genders').val(); //"MALE" || "FEMALE"
 	var vOld = sp[g]["OLD"].sort(function(a, b) { return b.nSat - a.nSat; }); //order by sat courses
 	var vNew = sp[g]["NEW"];
 	var vGender = vOld.concat(vNew); //old+new students, just one gender
@@ -132,49 +148,43 @@ function reload(){  //Uses global sp
 	$('#entry_point').html(table); //Inject table into html label: <span id="entry_point"/> 
 	$('#redips-drag').width($('#table1').width()); //http://www.redips.net/javascript/redips-drag-documentation-appendix-a/#redips_drag
 	$('#redips-drag').height($('#table1').height()); //http://www.redips.net/javascript/redips-drag-documentation-appendix-a/#redips_drag
-	alert("din_table: antes REDIPS.drag.init(persist)");
-	 //REDIPS has to reload dinamically generated tables
-	REDIPS.drag.init();
-	var json_text = save("json"); //"save" saves array as text!  <----- QUE SCRIPT.JS GUARDE EL ARRAY EN CADA DRAG&DROP (EVENTO SWITCH!!!!!)
-	last_layout = jQuery.parseJSON(json_text); //this is a kind of  eval('(' + json_text + ')');
+	
+	REDIPS.drag.init(); //REDIPS has to reload dinamically generated tables
+
 }
-/* TODO improve this function description
-* Whenever user modifies the SP, the changes get stored (online DB, extension persistence, etc)
-* Meanwhile CALM4 database may have changed (cancelled students/added students)
-* getLastLayout 
-*/
-function getLastLayout(){
-	//last_layout = [["NM0006"],["000000"],["OM0003"],["OM0004"],["OM0001"],["OM0006"],["OM0007"],["OM0008"],["OM0002"],["NM0002"],["000000"],["NM0004"],["NM0005"],["NM0008"],["000000"],["NM0007"],["000000"],["NM0001"],["000000"],["NM0003"],["OM0005"]];
-	//last_layout = [["NM0006"],["000000"],["OM0003"],["000000"],["OM0001"],["OM0006"],["OM0007"],["OM0008"],["OM0002"],["NM0002"],["OM0004"],["NM0004"],["NM0005"],["NM0008"],["000000"],["NM0007"],["000000"],["NM0001"],["000000"],["NM0003"],["OM0005"]];
-	return last_layout;
-}
-/* Recalls the last used layout for this course and sort the students array according to it. 
-* Default order to asign sits to students is by "nSat top->down". However, any modification by the user was recorded,
-* so now we can rebuild the last used layout. 
-* TODO improve explanation 
-* Whenever user modifies the SP, the changes get stored (online DB, extension persistence, etc)
-* Meanwhile CALM4 database may have changed (cancelled students/added students)
+
+/** Recalls the last used layout for this course and sort the students array according to it. 
+* Default order to asign sits to students is by "nSat top->down". However, any layout modification made by the user was persisted in the 
+* localStorage, so now we can rebuild the last used layout. 
+* @param students , which is a fresh batch of students. If a student is not present in 'students' array anymore (ie. cancelled course) just wont be 
+* added to 'ordered_result'. If a new student joined the course, it wont be present in the previous persisted data ('zig' array) so it will be 
+* left out in 'students' array. But still needs to be included on the new layout, that is why we return ordered_result.concat(students)
+* @return Any previous student that still present on the course + any new students comming from last-second ajax call to calm-server 
 */
 function orderByLastLayout(students){
 	var zig = getLastLayout();
 	var ordered_result = []; //Ordered according to persisted user's last arrangement
-	for(var i=0;i< zig.length; i++){ //ZIG is the ordered pattern (user's last arrangement)
-		var j = 0;
-		var found = false;
-		while(j < students.length && !found){ //to match against unsorted student's array
-			if(zig[i][0] === emptyId){ //"000000"
-				ordered_result.push({"id": emptyId});
-				found = true;
+	if(!zig){
+		ordered_result = students; //No previous layout, so use default order of 'students' array
+	}else {
+		for(var i=0;i< zig.length; i++){ //ZIG is the ordered pattern (user's last arrangement)
+			var j = 0;
+			var found = false;
+			while(j < students.length && !found){ //to match against unsorted student's array
+				if(zig[i][0] === emptyId){ //"000000"
+					ordered_result.push({"id": emptyId});
+					found = true;
+				}
+				else if(zig[i][0] === students[j]['id'] ){
+					var std = students.splice(j,1) //students.length decreases by 1
+					ordered_result.push(std[0]);
+					found = true;
+				}
+				j++;
 			}
-			else if(zig[i][0] === students[j]['id'] ){
-				var std = students.splice(j,1) //students.length decreases by 1
-				ordered_result.push(std[0]);
-				found = true;
-			}
-			j++;
 		}
+		ordered_result = ordered_result.concat(students); 
 	}
-	console.table(ordered_result);
 	return ordered_result;
 }
 
@@ -195,6 +205,9 @@ function getStudentsJSON(urlJSON){
 	});
 }
 
+
+
 //EXEC:
+initLocalStorage();
 getStudentsJSON(urlJSON);
-asingEventHandlerForSwitch(persist); //only once is enough :)
+asingEventHandlerForSwitch(setLastLayout); //when user switches cells, persist() method gets invoked 
